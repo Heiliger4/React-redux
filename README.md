@@ -1,5 +1,3 @@
-# Addis Songs App
-
 A full-stack application for managing a list of songs.
 
 ## Live Demo
