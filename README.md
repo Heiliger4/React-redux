@@ -44,7 +44,7 @@ All endpoints are prefixed with `/api`.
 
 ### 1. Clone the repository
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/Heiliger4/React-redux.git
 cd addis-songs-app
 ```
 
@@ -87,6 +87,3 @@ npm run dev
 
 ---
 
-## Deployment
-- **Frontend:** Vercel ([link](https://addis-songs.vercel.app/))
-- **Backend:** Render ([link](https://addis-songs-backend.onrender.com/api/))
