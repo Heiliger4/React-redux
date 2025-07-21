@@ -62,7 +62,7 @@ docker-compose up -d
 ```bash
 cd backend
 npm install
-npm start
+npm run dev
 ```
 #### Frontend
 ```bash
@@ -75,7 +75,7 @@ npm run dev
 
 ## Webpack
 - Manual Webpack config (no CRA)
-- Handles JS/JSX, CSS, images (SVG, PNG, etc.)
+- Handles JS/JSX, CSS, HTML
 - Uses `dotenv-webpack` for environment variables (e.g., `API_BASE_URL`)
 - Code splitting for optimized bundle size
 - See `frontend/webpack.config.js` for details
@@ -84,7 +84,7 @@ npm run dev
 
 ## Verification
 - All CRUD and pagination features tested in browser
-- API endpoints tested with Postman/cURL
+- API endpoints tested with Postman
 - Responsive and error states checked
 
 ---
