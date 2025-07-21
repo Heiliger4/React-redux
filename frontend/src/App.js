@@ -1,0 +1,117 @@
+import React, { useEffect, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchSongsRequest, selectError, selectLoading, selectSongs, selectPagination, selectSearchQuery, setCurrentPage, setPageLimit, setEditingSong, deleteSongRequest, selectIsModalOpen, selectEditingSong, closeModal, createSongRequest, updateSongRequest, clearError, setSearchQuery } from '@store/songsSlice';
+import { AppBar, Toolbar, Typography, Box, Button, InputBase, Paper, IconButton, InputAdornment, Grid, Select, MenuItem, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Stack, Alert, AlertTitle, CircularProgress, ThemeProvider, CssBaseline } from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
+import SearchIcon from '@mui/icons-material/Search';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
+import CloseIcon from '@mui/icons-material/Close';
+import MusicNoteIcon from '@mui/icons-material/MusicNote';
+import MuiPagination from '@mui/material/Pagination';
+import customDarkTheme from './styles/theme';
+
+export default function App() {
+  const d = useDispatch();
+  const loading = useSelector(selectLoading);
+  const error = useSelector(selectError);
+  const songs = useSelector(selectSongs);
+  const pag = useSelector(selectPagination);
+  const search = useSelector(selectSearchQuery);
+  const modal = useSelector(selectIsModalOpen);
+  const editing = useSelector(selectEditingSong);
+  const [form, setForm] = useState({ title: '', artist: '', album: '', year: '', genre: '', duration: '' });
+  const [err, setErr] = useState({});
+  const [q, setQ] = useState(search);
+  useEffect(() => { d(fetchSongsRequest()); }, [d, pag.page, pag.limit]);
+  useEffect(() => { setQ(search); }, [search]);
+  useEffect(() => { if (editing) setForm({ title: editing.title||'', artist: editing.artist||'', album: editing.album||'', year: editing.year||'', genre: editing.genre||'', duration: editing.duration||'' }); else setForm({ title: '', artist: '', album: '', year: '', genre: '', duration: '' }); setErr({}); }, [editing, modal]);
+  useEffect(() => { const t = setTimeout(() => { d(setSearchQuery(q)); d(fetchSongsRequest()); }, 300); return () => clearTimeout(t); }, [q, d]);
+  return (
+    <ThemeProvider theme={customDarkTheme}>
+      <CssBaseline />
+      <Box minHeight="100vh" bgcolor="background.default" color="text.primary">
+        <AppBar position="static" color="transparent" elevation={1} sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: 'background.paper' }}>
+          <Toolbar sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, alignItems: 'center', justifyContent: 'space-between', py: 2 }}>
+            <Typography variant="h4" color="primary" sx={{ fontWeight: 700, flex: 1, textAlign: { xs: 'center', md: 'left' } }}>
+              <Box component="span" sx={{ verticalAlign: 'middle', mr: 1 }}><SearchIcon color="primary" sx={{ fontSize: 32, verticalAlign: 'middle' }} /></Box>
+              Songs Manager
+            </Typography>
+            <Paper component="form" sx={{ p: '2px 8px', display: 'flex', alignItems: 'center', width: { xs: '100%', sm: 400 }, bgcolor: 'background.default', boxShadow: 0 }}>
+              <InputBase sx={{ ml: 1, flex: 1, color: 'text.primary' }} placeholder="Search songs, artists, or albums..." value={q} onChange={e => setQ(e.target.value)} inputProps={{ 'aria-label': 'search songs' }} endAdornment={q && (<InputAdornment position="end"><IconButton onClick={() => setQ('')} size="small" aria-label="clear search"><SearchIcon color="primary" /></IconButton></InputAdornment>)} />
+            </Paper>
+            <Button variant="contained" color="primary" startIcon={<AddIcon />} onClick={() => d({ type: 'songs/openModal' })} sx={{ minWidth: 140 }}>Add Song</Button>
+          </Toolbar>
+        </AppBar>
+        <Box maxWidth="lg" mx="auto" py={{ xs: 2, md: 4 }}>
+          {error && (<Box sx={{ width: '100%', mb: 2 }}><Alert severity="error" variant="filled" action={<IconButton color="inherit" size="small" onClick={() => d(clearError())} aria-label="close error alert"><CloseIcon fontSize="inherit" /></IconButton>}><AlertTitle>Error</AlertTitle>{error}</Alert></Box>)}
+          {loading && (<Box display="flex" justifyContent="center" alignItems="center" py={6}><CircularProgress color="primary" /><Typography variant="body1" color="text.secondary" ml={3}>Loading...</Typography></Box>)}
+          {!loading && (songs.length === 0 ? (
+            <Box my={6} textAlign="center">
+              <MusicNoteIcon sx={{ fontSize: 64, color: 'primary.main', mb: 2 }} />
+              <Typography variant="h5" color="text.secondary" gutterBottom>{search ? 'No songs found' : 'No songs yet'}</Typography>
+              <Typography variant="body1" color="text.secondary">{search ? `No songs match your search for "${search}". Try a different search term.` : 'Get started by adding your first song!'}</Typography>
+            </Box>
+          ) : (
+            <Box>
+              <Box display="flex" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
+                <Typography variant="body1" color="text.secondary">{(() => { const { page, limit, total } = pag; const start = (page - 1) * limit + 1; const end = Math.min(page * limit, total); if (total === 0) return search ? `No songs found matching "${search}"` : 'No songs available'; const base = `Showing ${start}-${end} of ${total} songs`; return search ? `${base} matching "${search}"` : base; })()}</Typography>
+                <Box display="flex" alignItems="center" gap={1}>
+                  <Typography variant="body2" color="text.secondary">Songs per page:</Typography>
+                  <Select value={pag.limit} onChange={e => d(setPageLimit(parseInt(e.target.value)))} size="small" sx={{ minWidth: 80, bgcolor: 'background.paper', color: 'text.primary' }}>{[5, 10, 20, 50].map(val => (<MenuItem key={val} value={val}>{val}</MenuItem>))}</Select>
+                </Box>
+              </Box>
+              <Grid container spacing={3} mb={3}>
+                {songs.map(song => (
+                  <Grid item xs={12} sm={6} md={4} key={song.id}>
+                    <Paper elevation={3} sx={{ p: 2, bgcolor: 'background.paper', height: '100%' }}>
+                      <Typography variant="h6" color="text.primary" gutterBottom>{song.title}</Typography>
+                      <Typography variant="subtitle1" color="primary.main">by {song.artist}</Typography>
+                      <Box mt={1}>
+                        {song.album && <Typography variant="body2" color="text.secondary">Album: {song.album}</Typography>}
+                        {song.year && <Typography variant="body2" color="text.secondary">Year: {song.year}</Typography>}
+                        {song.genre && <Typography variant="body2" color="text.secondary">Genre: {song.genre}</Typography>}
+                        {song.duration && <Typography variant="body2" color="text.secondary">Duration: {song.duration}</Typography>}
+                      </Box>
+                      <Box display="flex" gap={1} justifyContent="flex-end" mt={2}>
+                        <Button size="small" color="primary" variant="outlined" startIcon={<EditIcon />} onClick={() => d(setEditingSong(song))} sx={{ borderWidth: 2, borderColor: 'primary.main', borderStyle: 'solid', bgcolor: 'rgba(255,152,0,0.08)', color: 'primary.main', fontWeight: 700 }}>Edit</Button>
+                        <Button size="small" color="error" variant="outlined" startIcon={<DeleteIcon />} onClick={() => window.confirm('Are you sure?') && d(deleteSongRequest(song.id))}>Delete</Button>
+                      </Box>
+                    </Paper>
+                  </Grid>
+                ))}
+              </Grid>
+              {pag.totalPages > 1 && (
+                <Box display="flex" justifyContent="center" alignItems="center" my={2} mb={6}>
+                  <MuiPagination count={pag.totalPages} page={pag.page} onChange={(_, page) => d(setCurrentPage(page))} color="primary" shape="rounded" size="medium" showFirstButton showLastButton />
+                </Box>
+              )}
+            </Box>
+          ))}
+          <Dialog open={modal} onClose={() => { d(closeModal()); d(clearError()); setErr({}); }} maxWidth="xs" fullWidth>
+            <DialogTitle sx={{ bgcolor: 'background.default', color: 'text.primary', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>{editing ? 'Edit Song' : 'Add New Song'}<IconButton onClick={() => { d(closeModal()); d(clearError()); setErr({}); }} edge="end" color="inherit" aria-label="close"><CloseIcon /></IconButton></DialogTitle>
+            <DialogContent sx={{ bgcolor: 'background.paper' }}>
+              {error && <Alert severity="error" variant="filled" sx={{ mb: 2 }}>{error}</Alert>}
+              <form onSubmit={e => { e.preventDefault(); const e2 = {}; if (!form.title.trim()) e2.title = 'Title is required'; if (!form.artist.trim()) e2.artist = 'Artist is required'; if (form.year && (isNaN(form.year) || form.year < 1900 || form.year > new Date().getFullYear())) e2.year = 'Please enter a valid year'; if (form.duration && !/^\d{1,2}:\d{2}$/.test(form.duration)) e2.duration = 'Duration should be in MM:SS format (e.g., 3:45)'; setErr(e2); if (Object.keys(e2).length === 0) { const song = { ...form, year: form.year ? parseInt(form.year) : null }; if (editing) d(updateSongRequest({ id: editing.id, ...song })); else d(createSongRequest(song)); } }} id="song-modal-form">
+                <Stack spacing={2} mt={1}>
+                  <TextField label="Title *" name="title" value={form.title} onChange={e => { const { name, value } = e.target; setForm(f => ({ ...f, [name]: value })); if (err[name]) setErr(e0 => ({ ...e0, [name]: '' })); }} error={!!err.title} helperText={err.title} disabled={loading} fullWidth autoFocus />
+                  <TextField label="Artist *" name="artist" value={form.artist} onChange={e => { const { name, value } = e.target; setForm(f => ({ ...f, [name]: value })); if (err[name]) setErr(e0 => ({ ...e0, [name]: '' })); }} error={!!err.artist} helperText={err.artist} disabled={loading} fullWidth />
+                  <TextField label="Album" name="album" value={form.album} onChange={e => { const { name, value } = e.target; setForm(f => ({ ...f, [name]: value })); if (err[name]) setErr(e0 => ({ ...e0, [name]: '' })); }} error={!!err.album} helperText={err.album} disabled={loading} fullWidth />
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                    <TextField label="Year" name="year" type="number" min="1900" max={new Date().getFullYear()} value={form.year} onChange={e => { const { name, value } = e.target; setForm(f => ({ ...f, [name]: value })); if (err[name]) setErr(e0 => ({ ...e0, [name]: '' })); }} error={!!err.year} helperText={err.year} disabled={loading} fullWidth />
+                    <TextField label="Duration" name="duration" value={form.duration} onChange={e => { const { name, value } = e.target; setForm(f => ({ ...f, [name]: value })); if (err[name]) setErr(e0 => ({ ...e0, [name]: '' })); }} error={!!err.duration} helperText={err.duration || 'Format: MM:SS'} disabled={loading} fullWidth />
+                  </Stack>
+                  <TextField label="Genre" name="genre" value={form.genre} onChange={e => { const { name, value } = e.target; setForm(f => ({ ...f, [name]: value })); if (err[name]) setErr(e0 => ({ ...e0, [name]: '' })); }} error={!!err.genre} helperText={err.genre} disabled={loading} fullWidth />
+                </Stack>
+              </form>
+            </DialogContent>
+            <DialogActions sx={{ bgcolor: 'background.default', borderTop: '1px solid', borderColor: 'divider', p: 2 }}>
+              <Button onClick={() => { d(closeModal()); d(clearError()); setErr({}); }} color="primary" disabled={loading} variant="outlined" sx={{ borderWidth: 2, borderColor: 'primary.main', borderStyle: 'solid', bgcolor: 'rgba(255,152,0,0.08)', color: 'primary.main', fontWeight: 700 }}>Cancel</Button>
+              <Button onClick={e => { const e2 = {}; if (!form.title.trim()) e2.title = 'Title is required'; if (!form.artist.trim()) e2.artist = 'Artist is required'; if (form.year && (isNaN(form.year) || form.year < 1900 || form.year > new Date().getFullYear())) e2.year = 'Please enter a valid year'; if (form.duration && !/^\d{1,2}:\d{2}$/.test(form.duration)) e2.duration = 'Duration should be in MM:SS format (e.g., 3:45)'; setErr(e2); if (Object.keys(e2).length === 0) { const song = { ...form, year: form.year ? parseInt(form.year) : null }; if (editing) d(updateSongRequest({ id: editing.id, ...song })); else d(createSongRequest(song)); } }} color="primary" disabled={loading} variant="contained" type="submit" form="song-modal-form">{loading ? 'Saving...' : (editing ? 'Update Song' : 'Add Song')}</Button>
+            </DialogActions>
+          </Dialog>
+        </Box>
+      </Box>
+    </ThemeProvider>
+  );
+}
