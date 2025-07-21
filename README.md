@@ -1,7 +1,7 @@
 A full-stack application for managing a list of songs.
 
 ## Live Demo
-- **Frontend:** [https://addis-songs.vercel.app/](https://addis-songs.vercel.app/)
+- **Frontend:** [https://addis-software-project.vercel.app/](https://addis-software-project.vercel.app/)
 - **Backend:** [https://addis-songs-backend.onrender.com/api/](https://addis-songs-backend.onrender.com/api/)
 
 ---
