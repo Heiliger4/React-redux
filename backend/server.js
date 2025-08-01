@@ -84,7 +84,7 @@ app.get('/api/songs/:id', async (req, res) => {
 // create a new song (requires authentication)
 app.post('/api/songs', async (req, res) => {
   try {
-    const { title, artist, album, year, genre, duration } = req.body;
+    const { title, artist, album, year, genre, duration, ownerName = '' } = req.body;
 
     if (!title || !artist) {
       return res.status(400).json({ error: 'Title and artist are required' });
@@ -100,7 +100,9 @@ app.post('/api/songs', async (req, res) => {
       year: year || null,
       genre: genre || '',
       duration: duration || '',
-      ownerId: ownerId
+      ownerId: ownerId,
+      ownerName: ownerName,
+      isSeeded: false
     });
 
     const savedSong = await newSong.save();

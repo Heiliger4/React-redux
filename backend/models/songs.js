@@ -41,6 +41,16 @@ const songSchema = new mongoose.Schema({
     required: true,
     index: true,
   },
+  ownerName: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  isSeeded: {
+    type: Boolean,
+    default: false,
+    index: true,
+  },
 }, { timestamps: true });
 
 const Song = mongoose.model('Song', songSchema);

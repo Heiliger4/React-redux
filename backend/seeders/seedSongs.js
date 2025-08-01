@@ -11,6 +11,8 @@ const songs = [
     year: 1974,
     genre: "Ethio Jazz",
     duration: "6:12",
+    ownerId: 'seeded',
+    isSeeded: true,
   },
   {
     title: "Yekermo Sew",
@@ -254,7 +256,14 @@ async function seed() {
     await Song.deleteMany({});
     console.log("Cleared existing songs");
 
-    await Song.insertMany(songs);
+    // Add ownerId and isSeeded to all songs
+    const songsWithOwner = songs.map(song => ({
+      ...song,
+      ownerId: 'seeded',
+      isSeeded: true,
+    }));
+    
+    await Song.insertMany(songsWithOwner);
     console.log(`Inserted ${songs.length} songs into the database`);
 
     await mongoose.disconnect();

@@ -17,7 +17,7 @@ import customDarkTheme from './styles/theme';
 
 export default function App() {
   const d = useDispatch();
-  const { isSignedIn, userRole, isAdmin, isUser, isGuest, userId, isLoading: authLoading } = useAuthState();
+  const { isSignedIn, user, userRole, isAdmin, isUser, isGuest, userId, isLoading: authLoading } = useAuthState();
   const loading = useSelector(selectLoading);
   const error = useSelector(selectError);
   const songs = useSelector(selectSongs);
@@ -39,21 +39,23 @@ export default function App() {
   // Helper function to check if user can edit/delete a song
   const canModifySong = (song) => {
     if (isGuest) return false;
-    if (isAdmin) return true;
-    if (isUser) return song.ownerId === userId || song.ownerId === 'default-user';
+    if (isAdmin) return true; // Admins can modify all songs
+    if (isUser) return (song.ownerId === userId || song.ownerId === 'default-user') && !song.isSeeded;
     return false;
   };
 
+  // Get the current user's display name
+  const currentUserName = user?.firstName || user?.username || '';
+
   // Filter songs based on active tab
   const filteredSongs = activeTab === 'my-songs' && isSignedIn 
-    ? songs.filter(song => song.ownerId === userId || song.ownerId === 'default-user')
+    ? songs.filter(song => song.ownerName === currentUserName)
     : songs;
 
   // Get owner display name
   const getOwnerDisplay = (song) => {
-    if (song.ownerId === userId) return 'You';
-    if (song.ownerId === 'default-user') return 'You';
-    if (song.ownerId) return `User ${song.ownerId.slice(0, 8)}...`;
+    if (song.isSeeded) return 'Free';
+    if (song.ownerName) return song.ownerName;
     return 'Unknown';
   };
 
@@ -215,7 +217,15 @@ export default function App() {
                       <Grid container spacing={3} mb={3}>
                         {filteredSongs.map(song => (
                           <Grid item xs={12} sm={6} md={4} lg={3} key={song.id}>
-                            <Paper elevation={3} sx={{ p: 3, bgcolor: 'background.paper', height: '100%', minHeight: 280 }}>
+                            <Paper elevation={3} sx={{ 
+                              p: 3, 
+                              bgcolor: 'background.paper', 
+                              height: 320, 
+                              width: '100%',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'space-between'
+                            }}>
                               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
                                 <Box sx={{ flex: 1 }}>
                                   <Typography variant="h6" color="text.primary" gutterBottom sx={{ fontWeight: 600 }}>
@@ -228,7 +238,7 @@ export default function App() {
                                 <Chip 
                                   label={getOwnerDisplay(song)} 
                                   size="small" 
-                                  color={song.ownerId === userId || song.ownerId === 'default-user' ? "primary" : "default"}
+                                  color={song.isSeeded ? "success" : (song.ownerId === userId || song.ownerId === 'default-user' ? "primary" : "default")}
                                   variant="outlined"
                                   sx={{ ml: 1 }}
                                 />
@@ -281,9 +291,9 @@ export default function App() {
                                 )}
                                 {!canModifySong(song) && isSignedIn && (
                                   <Chip 
-                                    label={song.ownerId === userId || song.ownerId === 'default-user' ? "Your Song" : "Other User's Song"} 
+                                    label={song.isSeeded ? "Free Song" : (song.ownerId === userId || song.ownerId === 'default-user' ? "Your Song" : "Other User's Song")} 
                                     size="small" 
-                                    color={song.ownerId === userId || song.ownerId === 'default-user' ? "primary" : "default"}
+                                    color={song.isSeeded ? "success" : (song.ownerId === userId || song.ownerId === 'default-user' ? "primary" : "default")}
                                     variant="outlined"
                                   />
                                 )}
@@ -316,7 +326,7 @@ export default function App() {
             <DialogTitle sx={{ bgcolor: 'background.default', color: 'text.primary', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>{editing ? 'Edit Song' : 'Add New Song'}<IconButton onClick={() => { d(closeModal()); d(clearError()); setErr({}); }} edge="end" color="inherit" aria-label="close"><CloseIcon /></IconButton></DialogTitle>
             <DialogContent sx={{ bgcolor: 'background.paper' }}>
               {error && <Alert severity="error" variant="filled" sx={{ mb: 2 }}>{error}</Alert>}
-              <form onSubmit={e => { e.preventDefault(); const e2 = {}; if (!form.title.trim()) e2.title = 'Title is required'; if (!form.artist.trim()) e2.artist = 'Artist is required'; if (form.year && (isNaN(form.year) || form.year < 1900 || form.year > new Date().getFullYear())) e2.year = 'Please enter a valid year'; if (form.duration && !/^\d{1,2}:\d{2}$/.test(form.duration)) e2.duration = 'Duration should be in MM:SS format (e.g., 3:45)'; setErr(e2); if (Object.keys(e2).length === 0) { const song = { ...form, year: form.year ? parseInt(form.year) : null }; if (editing) d(updateSongRequest({ id: editing.id, ...song })); else d(createSongRequest(song)); } }} id="song-modal-form">
+              <form onSubmit={e => { e.preventDefault(); const e2 = {}; if (!form.title.trim()) e2.title = 'Title is required'; if (!form.artist.trim()) e2.artist = 'Artist is required'; if (form.year && (isNaN(form.year) || form.year < 1900 || form.year > new Date().getFullYear())) e2.year = 'Please enter a valid year'; if (form.duration && !/^\d{1,2}:\d{2}$/.test(form.duration)) e2.duration = 'Duration should be in MM:SS format (e.g., 3:45)'; setErr(e2); if (Object.keys(e2).length === 0) { const song = { ...form, year: form.year ? parseInt(form.year) : null, ownerName: currentUserName }; if (editing) d(updateSongRequest({ id: editing.id, ...song })); else d(createSongRequest(song)); } }} id="song-modal-form">
                 <Stack spacing={2} mt={1}>
                   <TextField label="Title *" name="title" value={form.title} onChange={e => { const { name, value } = e.target; setForm(f => ({ ...f, [name]: value })); if (err[name]) setErr(e0 => ({ ...e0, [name]: '' })); }} error={!!err.title} helperText={err.title} disabled={loading} fullWidth autoFocus />
                   <TextField label="Artist *" name="artist" value={form.artist} onChange={e => { const { name, value } = e.target; setForm(f => ({ ...f, [name]: value })); if (err[name]) setErr(e0 => ({ ...e0, [name]: '' })); }} error={!!err.artist} helperText={err.artist} disabled={loading} fullWidth />
@@ -331,7 +341,7 @@ export default function App() {
             </DialogContent>
             <DialogActions sx={{ bgcolor: 'background.default', borderTop: '1px solid', borderColor: 'divider', p: 2 }}>
               <Button onClick={() => { d(closeModal()); d(clearError()); setErr({}); }} color="primary" disabled={loading} variant="outlined" sx={{ borderWidth: 2, borderColor: 'primary.main', borderStyle: 'solid', bgcolor: 'rgba(255,152,0,0.08)', color: 'primary.main', fontWeight: 700 }}>Cancel</Button>
-              <Button onClick={e => { const e2 = {}; if (!form.title.trim()) e2.title = 'Title is required'; if (!form.artist.trim()) e2.artist = 'Artist is required'; if (form.year && (isNaN(form.year) || form.year < 1900 || form.year > new Date().getFullYear())) e2.year = 'Please enter a valid year'; if (form.duration && !/^\d{1,2}:\d{2}$/.test(form.duration)) e2.duration = 'Duration should be in MM:SS format (e.g., 3:45)'; setErr(e2); if (Object.keys(e2).length === 0) { const song = { ...form, year: form.year ? parseInt(form.year) : null }; if (editing) d(updateSongRequest({ id: editing.id, ...song })); else d(createSongRequest(song)); } }} color="primary" disabled={loading} variant="contained" type="submit" form="song-modal-form">{loading ? 'Saving...' : (editing ? 'Update Song' : 'Add Song')}</Button>
+              <Button onClick={e => { const e2 = {}; if (!form.title.trim()) e2.title = 'Title is required'; if (!form.artist.trim()) e2.artist = 'Artist is required'; if (form.year && (isNaN(form.year) || form.year < 1900 || form.year > new Date().getFullYear())) e2.year = 'Please enter a valid year'; if (form.duration && !/^\d{1,2}:\d{2}$/.test(form.duration)) e2.duration = 'Duration should be in MM:SS format (e.g., 3:45)'; setErr(e2); if (Object.keys(e2).length === 0) { const song = { ...form, year: form.year ? parseInt(form.year) : null, ownerName: currentUserName }; if (editing) d(updateSongRequest({ id: editing.id, ...song })); else d(createSongRequest(song)); } }} color="primary" disabled={loading} variant="contained" type="submit" form="song-modal-form">{loading ? 'Saving...' : (editing ? 'Update Song' : 'Add Song')}</Button>
             </DialogActions>
           </Dialog>
         </Box>
