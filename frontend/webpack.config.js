@@ -53,7 +53,11 @@ module.exports = (_, argv) => {
           minifyURLs: true
         }
       }),
-      new Dotenv({ path: './.env', systemvars: true }),
+      new Dotenv({ 
+        path: './.env.local',
+        systemvars: true,
+        safe: true 
+      }),
       ...(isProd ? [new MiniCssExtractPlugin({ filename: 'css/[name].[contenthash].css', chunkFilename: 'css/[id].[contenthash].css' })] : [])
     ],
     devServer: {

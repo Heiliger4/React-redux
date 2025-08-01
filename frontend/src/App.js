@@ -9,6 +9,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import CloseIcon from '@mui/icons-material/Close';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import MuiPagination from '@mui/material/Pagination';
+import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton } from '@clerk/clerk-react';
 import customDarkTheme from './styles/theme';
 
 export default function App() {
@@ -37,22 +38,53 @@ export default function App() {
               <Box component="span" sx={{ verticalAlign: 'middle', mr: 1 }}><SearchIcon color="primary" sx={{ fontSize: 32, verticalAlign: 'middle' }} /></Box>
               Songs Manager
             </Typography>
-            <Paper component="form" sx={{ p: '2px 8px', display: 'flex', alignItems: 'center', width: { xs: '100%', sm: 400 }, bgcolor: 'background.default', boxShadow: 0 }}>
-              <InputBase sx={{ ml: 1, flex: 1, color: 'text.primary' }} placeholder="Search songs, artists, or albums..." value={q} onChange={e => setQ(e.target.value)} inputProps={{ 'aria-label': 'search songs' }} endAdornment={q && (<InputAdornment position="end"><IconButton onClick={() => setQ('')} size="small" aria-label="clear search"><SearchIcon color="primary" /></IconButton></InputAdornment>)} />
-            </Paper>
-            <Button variant="contained" color="primary" startIcon={<AddIcon />} onClick={() => d({ type: 'songs/openModal' })} sx={{ minWidth: 140 }}>Add Song</Button>
+            <SignedIn>
+              <Paper component="form" sx={{ p: '2px 8px', display: 'flex', alignItems: 'center', width: { xs: '100%', sm: 400 }, bgcolor: 'background.default', boxShadow: 0 }}>
+                <InputBase sx={{ ml: 1, flex: 1, color: 'text.primary' }} placeholder="Search songs, artists, or albums..." value={q} onChange={e => setQ(e.target.value)} inputProps={{ 'aria-label': 'search songs' }} endAdornment={q && (<InputAdornment position="end"><IconButton onClick={() => setQ('')} size="small" aria-label="clear search"><SearchIcon color="primary" /></IconButton></InputAdornment>)} />
+              </Paper>
+              <Button variant="contained" color="primary" startIcon={<AddIcon />} onClick={() => d({ type: 'songs/openModal' })} sx={{ minWidth: 140 }}>Add Song</Button>
+            </SignedIn>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <SignedOut>
+                <SignInButton mode="modal">
+                  <Button variant="outlined" color="primary" sx={{ minWidth: 100 }}>Sign In</Button>
+                </SignInButton>
+                <SignUpButton mode="modal">
+                  <Button variant="contained" color="primary" sx={{ minWidth: 100 }}>Sign Up</Button>
+                </SignUpButton>
+              </SignedOut>
+              <SignedIn>
+                <UserButton />
+              </SignedIn>
+            </Box>
           </Toolbar>
         </AppBar>
         <Box maxWidth="lg" mx="auto" py={{ xs: 2, md: 4 }}>
-          {error && (<Box sx={{ width: '100%', mb: 2 }}><Alert severity="error" variant="filled" action={<IconButton color="inherit" size="small" onClick={() => d(clearError())} aria-label="close error alert"><CloseIcon fontSize="inherit" /></IconButton>}><AlertTitle>Error</AlertTitle>{error}</Alert></Box>)}
-          {loading && (<Box display="flex" justifyContent="center" alignItems="center" py={6}><CircularProgress color="primary" /><Typography variant="body1" color="text.secondary" ml={3}>Loading...</Typography></Box>)}
-          {!loading && (songs.length === 0 ? (
+          <SignedOut>
             <Box my={6} textAlign="center">
               <MusicNoteIcon sx={{ fontSize: 64, color: 'primary.main', mb: 2 }} />
-              <Typography variant="h5" color="text.secondary" gutterBottom>{search ? 'No songs found' : 'No songs yet'}</Typography>
-              <Typography variant="body1" color="text.secondary">{search ? `No songs match your search for "${search}". Try a different search term.` : 'Get started by adding your first song!'}</Typography>
+              <Typography variant="h5" color="text.secondary" gutterBottom>Welcome to Songs Manager</Typography>
+              <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>Please sign in to manage your songs collection.</Typography>
+              <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
+                <SignInButton mode="modal">
+                  <Button variant="outlined" color="primary" size="large">Sign In</Button>
+                </SignInButton>
+                <SignUpButton mode="modal">
+                  <Button variant="contained" color="primary" size="large">Sign Up</Button>
+                </SignUpButton>
+              </Box>
             </Box>
-          ) : (
+          </SignedOut>
+          <SignedIn>
+            {error && (<Box sx={{ width: '100%', mb: 2 }}><Alert severity="error" variant="filled" action={<IconButton color="inherit" size="small" onClick={() => d(clearError())} aria-label="close error alert"><CloseIcon fontSize="inherit" /></IconButton>}><AlertTitle>Error</AlertTitle>{error}</Alert></Box>)}
+            {loading && (<Box display="flex" justifyContent="center" alignItems="center" py={6}><CircularProgress color="primary" /><Typography variant="body1" color="text.secondary" ml={3}>Loading...</Typography></Box>)}
+            {!loading && (songs.length === 0 ? (
+              <Box my={6} textAlign="center">
+                <MusicNoteIcon sx={{ fontSize: 64, color: 'primary.main', mb: 2 }} />
+                <Typography variant="h5" color="text.secondary" gutterBottom>{search ? 'No songs found' : 'No songs yet'}</Typography>
+                <Typography variant="body1" color="text.secondary">{search ? `No songs match your search for "${search}". Try a different search term.` : 'Get started by adding your first song!'}</Typography>
+              </Box>
+            ) : (
             <Box>
               <Box display="flex" justifyContent="space-between" alignItems="center" mb={3} flexWrap="wrap" gap={2}>
                 <Typography variant="body1" color="text.secondary">{(() => { const { page, limit, total } = pag; const start = (page - 1) * limit + 1; const end = Math.min(page * limit, total); if (total === 0) return search ? `No songs found matching "${search}"` : 'No songs available'; const base = `Showing ${start}-${end} of ${total} songs`; return search ? `${base} matching "${search}"` : base; })()}</Typography>
@@ -88,6 +120,7 @@ export default function App() {
               )}
             </Box>
           ))}
+          </SignedIn>
           <Dialog open={modal} onClose={() => { d(closeModal()); d(clearError()); setErr({}); }} maxWidth="xs" fullWidth>
             <DialogTitle sx={{ bgcolor: 'background.default', color: 'text.primary', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>{editing ? 'Edit Song' : 'Add New Song'}<IconButton onClick={() => { d(closeModal()); d(clearError()); setErr({}); }} edge="end" color="inherit" aria-label="close"><CloseIcon /></IconButton></DialogTitle>
             <DialogContent sx={{ bgcolor: 'background.paper' }}>
