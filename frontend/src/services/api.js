@@ -8,6 +8,18 @@ const apiClient = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
+// Add auth token to requests when available (temporarily disabled for testing)
+apiClient.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('clerk-token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
 apiClient.interceptors.request.use(
   (config) => config,
   (error) => Promise.reject(error)

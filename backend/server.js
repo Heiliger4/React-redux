@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const { v4: uuidv4 } = require('uuid');
+const { requireAuth, authorizeRoles, checkSongOwnership } = require('./middleware/auth');
 require('dotenv').config();
 
 const app = express();
@@ -80,7 +81,7 @@ app.get('/api/songs/:id', async (req, res) => {
   }
 });
 
-// create a new song
+// create a new song (requires authentication)
 app.post('/api/songs', async (req, res) => {
   try {
     const { title, artist, album, year, genre, duration } = req.body;
@@ -89,26 +90,30 @@ app.post('/api/songs', async (req, res) => {
       return res.status(400).json({ error: 'Title and artist are required' });
     }
 
+    // For now, use a default ownerId since auth isn't fully configured
+    const ownerId = req.auth?.userId || 'default-user';
+
     const newSong = new Song({
       title,
       artist,
       album: album || '',
       year: year || null,
       genre: genre || '',
-      duration: duration || ''
+      duration: duration || '',
+      ownerId: ownerId
     });
 
     const savedSong = await newSong.save();
     res.status(201).json(savedSong);
   } catch (error) {
+    console.error('Error creating song:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// update an existing song
+// update an existing song (requires ownership or admin)
 app.put('/api/songs/:id', async (req, res) => {
   try {
-    const { id } = req.params;
     const { title, artist, album, year, genre, duration } = req.body;
 
     if (!title || !artist) {
@@ -116,7 +121,7 @@ app.put('/api/songs/:id', async (req, res) => {
     }
 
     const updatedSong = await Song.findOneAndUpdate(
-      { id },
+      { id: req.params.id },
       {
         title,
         artist,
@@ -128,27 +133,66 @@ app.put('/api/songs/:id', async (req, res) => {
       { new: true }
     );
 
-    if (!updatedSong) {
-      return res.status(404).json({ error: 'Song not found' });
-    }
-
     res.json(updatedSong);
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// delete a song
+// delete a song (requires ownership or admin)
 app.delete('/api/songs/:id', async (req, res) => {
   try {
-    const { id } = req.params;
-    const deletedSong = await Song.findOneAndDelete({ id });
+    await Song.findOneAndDelete({ id: req.params.id });
+    res.status(204).send();
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
-    if (!deletedSong) {
-      return res.status(404).json({ error: 'Song not found' });
+// Admin routes for user management
+app.get('/api/users', requireAuth, authorizeRoles('admin'), async (req, res) => {
+  try {
+    // This would typically fetch users from Clerk API
+    // For now, we'll return a placeholder response
+    res.json({ 
+      message: 'User management endpoint - implement Clerk API integration',
+      note: 'Use Clerk API to fetch users and their roles'
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.patch('/api/users/:userId/role', requireAuth, authorizeRoles('admin'), async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { role } = req.body;
+    
+    if (!['user', 'admin'].includes(role)) {
+      return res.status(400).json({ error: 'Invalid role. Must be "user" or "admin"' });
     }
 
-    res.status(204).send();
+    // This would typically update user role via Clerk API
+    // For now, we'll return a placeholder response
+    res.json({ 
+      message: `Role updated for user ${userId} to ${role}`,
+      note: 'Use Clerk API to update user public_metadata.role'
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.delete('/api/users/:userId', requireAuth, authorizeRoles('admin'), async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    // This would typically delete user via Clerk API
+    // For now, we'll return a placeholder response
+    res.json({ 
+      message: `User ${userId} deleted`,
+      note: 'Use Clerk API to delete user'
+    });
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
   }

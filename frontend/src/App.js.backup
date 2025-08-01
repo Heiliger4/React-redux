@@ -56,7 +56,6 @@ export default function App() {
     if (song.ownerId) return `User ${song.ownerId.slice(0, 8)}...`;
     return 'Unknown';
   };
-
   return (
     <ThemeProvider theme={customDarkTheme}>
       <CssBaseline />

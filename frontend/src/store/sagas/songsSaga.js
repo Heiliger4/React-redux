@@ -8,7 +8,17 @@ function* fetchSongsSaga() {
     const searchQuery = yield select(selectSearchQuery);
     const params = { page: pagination.page, limit: pagination.limit, search: searchQuery };
     const response = yield call(songsApi.fetchSongs, params);
-    yield put(fetchSongsSuccess(response.data));
+    
+    // Map the response to match expected structure
+    const mappedResponse = {
+      data: response.data.data || response.data,
+      page: response.data.currentPage || response.data.page || 1,
+      limit: pagination.limit,
+      total: response.data.totalItems || response.data.total || 0,
+      totalPages: response.data.totalPages || 1
+    };
+    
+    yield put(fetchSongsSuccess(mappedResponse));
   } catch (error) {
     yield put(fetchSongsFailure(error.response?.data?.error || error.message || 'Failed to fetch songs'));
   }

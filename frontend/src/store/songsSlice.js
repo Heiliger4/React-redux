@@ -8,6 +8,7 @@ const initialState = {
   error: null,
   isModalOpen: false,
   editingSong: null,
+  activeTab: 'all', // 'all' or 'my-songs'
 };
 
 const songsSlice = createSlice({
@@ -48,6 +49,7 @@ const songsSlice = createSlice({
     closeModal: (state) => { state.isModalOpen = false; state.editingSong = null; state.error = null; },
     setEditingSong: (state, action) => { state.editingSong = action.payload; state.isModalOpen = true; },
     clearError: (state) => { state.error = null; },
+    setActiveTab: (state, action) => { state.activeTab = action.payload; },
   },
 });
 
@@ -57,7 +59,7 @@ export const {
   updateSongRequest, updateSongSuccess, updateSongFailure,
   deleteSongRequest, deleteSongSuccess, deleteSongFailure,
   setCurrentPage, setPageLimit, setSearchQuery,
-  openModal, closeModal, setEditingSong, clearError,
+  openModal, closeModal, setEditingSong, clearError, setActiveTab,
 } = songsSlice.actions;
 
 export default songsSlice.reducer;
@@ -69,3 +71,4 @@ export const selectLoading = (state) => state.songs.loading;
 export const selectError = (state) => state.songs.error;
 export const selectIsModalOpen = (state) => state.songs.isModalOpen;
 export const selectEditingSong = (state) => state.songs.editingSong;
+export const selectActiveTab = (state) => state.songs.activeTab;

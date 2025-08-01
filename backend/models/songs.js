@@ -36,6 +36,11 @@ const songSchema = new mongoose.Schema({
     type: String,
     default: '',
   },
+  ownerId: {
+    type: String,
+    required: true,
+    index: true,
+  },
 }, { timestamps: true });
 
 const Song = mongoose.model('Song', songSchema);
