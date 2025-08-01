@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -13,81 +14,13 @@ app.use(express.json());
 app.use(cors());
 // app.use(cors({ origin: 'https://addis-songs-frontend.onrender.com' }));
 
-// In-memory storage for songs (in production, you'd use a database)
-let songs = [
-  {
-    id: uuidv4(),
-    title: "Bohemian Rhapsody",
-    artist: "Queen",
-    album: "A Night at the Opera",
-    year: 1975,
-    genre: "Rock",
-    duration: "5:55"
-  },
-  {
-    id: uuidv4(),
-    title: "Hotel California",
-    artist: "Eagles",
-    album: "Hotel California",
-    year: 1976,
-    genre: "Rock",
-    duration: "6:30"
-  },
-  {
-    id: uuidv4(),
-    title: "Imagine",
-    artist: "John Lennon",
-    album: "Imagine",
-    year: 1971,
-    genre: "Pop",
-    duration: "3:01"
-  },
-  {
-    id: uuidv4(),
-    title: "Billie Jean",
-    artist: "Michael Jackson",
-    album: "Thriller",
-    year: 1982,
-    genre: "Pop",
-    duration: "4:54"
-  },
-  {
-    id: uuidv4(),
-    title: "Sweet Child O' Mine",
-    artist: "Guns N' Roses",
-    album: "Appetite for Destruction",
-    year: 1987,
-    genre: "Rock",
-    duration: "5:03"
-  },
-  {
-    id: uuidv4(),
-    title: "Smells Like Teen Spirit",
-    artist: "Nirvana",
-    album: "Nevermind",
-    year: 1991,
-    genre: "Grunge",
-    duration: "5:01"
-  },
-  {
-    id: uuidv4(),
-    title: "Like a Rolling Stone",
-    artist: "Bob Dylan",
-    album: "Highway 61 Revisited",
-    year: 1965,
-    genre: "Folk Rock",
-    duration: "6:13"
-  },
-  {
-    id: uuidv4(),
-    title: "Purple Haze",
-    artist: "Jimi Hendrix",
-    album: "Are You Experienced",
-    year: 1967,
-    genre: "Rock",
-    duration: "2:51"
-  }
-];
+// connect to mongodb atlas
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log('✅ MongoDB connected'))
+  .catch((err) => console.error('❌ MongoDB connection error:', err));
+
+// real db model connection
+const Song = require('./models/songs'); 
 
 // fn for pagination
 const paginate = (array, page, limit) => {
@@ -103,31 +36,39 @@ const paginate = (array, page, limit) => {
 };
 
 // get all songs 
-app.get('/api/songs', (req, res) => {
+app.get('/api/songs', async (req, res) => {
   try {
     const { page = 1, limit = 5, search = '' } = req.query;
-    
-    let filteredSongs = songs;
+    const query = {};
+
     if (search) {
-      filteredSongs = songs.filter(song =>
-        song.title.toLowerCase().includes(search.toLowerCase()) ||
-        song.artist.toLowerCase().includes(search.toLowerCase()) ||
-        song.album.toLowerCase().includes(search.toLowerCase())
-      );
+      query.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { artist: { $regex: search, $options: 'i' } },
+        { album: { $regex: search, $options: 'i' } },
+      ];
     }
-    
-    const paginatedResult = paginate(filteredSongs, page, limit);
-    res.json(paginatedResult);
+
+    const skip = (page - 1) * limit;
+    const songs = await Song.find(query).skip(skip).limit(Number(limit));
+    const total = await Song.countDocuments(query);
+
+    res.json({
+      data: songs,
+      currentPage: Number(page),
+      totalPages: Math.ceil(total / limit),
+      totalItems: total,
+    });
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 // get song by id
-app.get('/api/songs/:id', (req, res) => {
+app.get('/api/songs/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const song = songs.find(s => s.id === id);
+    const song = await Song.findOne({ id });
     
     if (!song) {
       return res.status(404).json({ error: 'Song not found' });
@@ -140,74 +81,73 @@ app.get('/api/songs/:id', (req, res) => {
 });
 
 // create a new song
-app.post('/api/songs', (req, res) => {
+app.post('/api/songs', async (req, res) => {
   try {
     const { title, artist, album, year, genre, duration } = req.body;
-    
+
     if (!title || !artist) {
       return res.status(400).json({ error: 'Title and artist are required' });
     }
-    
-    const newSong = {
-      id: uuidv4(),
+
+    const newSong = new Song({
       title,
       artist,
       album: album || '',
       year: year || null,
       genre: genre || '',
       duration: duration || ''
-    };
-    
-    songs.push(newSong);
-    res.status(201).json(newSong);
+    });
+
+    const savedSong = await newSong.save();
+    res.status(201).json(savedSong);
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 // update an existing song
-app.put('/api/songs/:id', (req, res) => {
+app.put('/api/songs/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { title, artist, album, year, genre, duration } = req.body;
-    
-    const songIndex = songs.findIndex(s => s.id === id);
-    
-    if (songIndex === -1) {
-      return res.status(404).json({ error: 'Song not found' });
-    }
-    
+
     if (!title || !artist) {
       return res.status(400).json({ error: 'Title and artist are required' });
     }
-    
-    songs[songIndex] = {
-      ...songs[songIndex],
-      title,
-      artist,
-      album: album || '',
-      year: year || null,
-      genre: genre || '',
-      duration: duration || ''
-    };
-    
-    res.json(songs[songIndex]);
+
+    const updatedSong = await Song.findOneAndUpdate(
+      { id },
+      {
+        title,
+        artist,
+        album: album || '',
+        year: year || null,
+        genre: genre || '',
+        duration: duration || ''
+      },
+      { new: true }
+    );
+
+    if (!updatedSong) {
+      return res.status(404).json({ error: 'Song not found' });
+    }
+
+    res.json(updatedSong);
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 // delete a song
-app.delete('/api/songs/:id', (req, res) => {
+app.delete('/api/songs/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const songIndex = songs.findIndex(s => s.id === id);
-    
-    if (songIndex === -1) {
+    const deletedSong = await Song.findOneAndDelete({ id });
+
+    if (!deletedSong) {
       return res.status(404).json({ error: 'Song not found' });
     }
-    
-    songs.splice(songIndex, 1);
+
     res.status(204).send();
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
